@@ -1,34 +1,32 @@
 import jwt from "jsonwebtoken"
-import type { JwtPayload } from "jsonwebtoken"
 import type { Request, Response, NextFunction } from "express"
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: string | JwtPayload
-    }
+export interface AuthRequest extends Request {
+  user?: {
+    id: string
   }
 }
 
-const protect = async (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const token = req.headers.authorization
+
+  if (!token) {
+    return res.status(401).json({ message: "No token" })
+  }
+
   try {
-    const token = req.headers.authorization?.split(" ")[1]
-
-    if (!token) {
-      return res.status(401).json({ message: "Token not found" })
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload & { id: string}
-
-    if (!decoded) {
-      return res.status(403).json({ message: "Forbidden" })
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      id: string
     }
 
     req.user = decoded
+
     next()
   } catch (error) {
     return res.status(401).json({ message: "Invalid token" })
   }
 }
-
-export default protect
